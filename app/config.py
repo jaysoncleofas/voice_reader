@@ -50,6 +50,24 @@ class Settings:
     # Signs the session cookie that keeps people logged in.
     storage_secret: str = os.getenv("VOICE_STORAGE_SECRET", "change-me-in-production")
 
+    # Cache and rate-limit counters. The app runs without Redis, just slower
+    # and unthrottled, so nothing here is required.
+    redis_url: str = os.getenv("VOICE_REDIS_URL", "redis://redis:6379/0")
+    cache_enabled: bool = _flag("VOICE_CACHE_ENABLED", "true")
+    cache_ttl: int = int(os.getenv("VOICE_CACHE_TTL", "300"))
+
+    # Rate limits, as "count/seconds" windows.
+    rate_limit_enabled: bool = _flag("VOICE_RATE_LIMIT_ENABLED", "true")
+    # Synthesis pins a CPU core for ~10s, on a box shared with other apps.
+    limit_speak: str = os.getenv("VOICE_LIMIT_SPEAK", "20/3600")
+    # Each upload writes a few MB and shells out to ffmpeg.
+    limit_upload: str = os.getenv("VOICE_LIMIT_UPLOAD", "30/3600")
+    # Brute-force protection on the credential forms.
+    limit_auth: str = os.getenv("VOICE_LIMIT_AUTH", "10/300")
+
+    # How long browsers may keep fingerprinted static assets.
+    asset_max_age: int = int(os.getenv("VOICE_ASSET_MAX_AGE", "31536000"))
+
     @property
     def voices_dir(self) -> Path:
         return self.data_dir / "voices"

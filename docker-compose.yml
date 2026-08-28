@@ -15,6 +15,17 @@ services:
       timeout: 5s
       retries: 10
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Cache only: bounded memory, evict coldest keys rather than erroring.
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru --save ""
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   voice:
     build: .
     container_name: voice
@@ -24,11 +35,14 @@ services:
       VOICE_TITLE: ${VOICE_TITLE:-Voice Reader}
       VOICE_DATABASE_URL: postgresql://voice:${POSTGRES_PASSWORD:-voice}@db:5432/voice_reader
       VOICE_STORAGE_SECRET: ${VOICE_STORAGE_SECRET:-dev-secret-not-for-production}
+      VOICE_REDIS_URL: redis://redis:6379/0
     volumes:
       # Recorded voices, model weights, and cached clips persist across rebuilds.
       - voice-data:/data
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

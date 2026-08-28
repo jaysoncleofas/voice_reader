@@ -2,9 +2,22 @@
 
 from nicegui import ui
 
+from nicegui import context
+
 from app.auth import current_user, sign_in, sign_out
 from app.config import settings
+from app.services import ratelimit
 from app.services.users import AuthError, authenticate, register
+
+
+def _client_ip() -> str:
+    """Caller's address, trusting nginx's X-Forwarded-For in front of us."""
+    try:
+        request = context.client.request
+        forwarded = request.headers.get("x-forwarded-for", "")
+        return (forwarded.split(",")[0].strip() or request.client.host) if request else "unknown"
+    except Exception:  # noqa: BLE001
+        return "unknown"
 
 
 def _card(title: str, subtitle: str):
@@ -46,6 +59,10 @@ def register_pages() -> None:
                 ui.link("Create one", "/register").classes("text-sm font-medium")
 
             def attempt() -> None:
+                verdict = ratelimit.auth(_client_ip())
+                if not verdict.allowed:
+                    error.text = verdict.message
+                    return
                 try:
                     sign_in(authenticate(email.value, password.value))
                 except AuthError as exc:
@@ -80,6 +97,10 @@ def register_pages() -> None:
                 ui.link("Sign in", "/login").classes("text-sm font-medium")
 
             def attempt() -> None:
+                verdict = ratelimit.auth(_client_ip())
+                if not verdict.allowed:
+                    error.text = verdict.message
+                    return
                 try:
                     sign_in(register(email.value, password.value))
                 except AuthError as exc:

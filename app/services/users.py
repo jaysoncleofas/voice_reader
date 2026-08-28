@@ -10,6 +10,7 @@ import os
 import re
 from dataclasses import dataclass
 
+from app.cache import delete as cache_delete, get_json, set_json
 from app.db import cursor
 
 # scrypt parameters. n must be a power of two; these are the parameters
@@ -86,8 +87,27 @@ def authenticate(email: str, password: str) -> User:
     return User(id=row[0], email=row[1])
 
 
+def _user_key(user_id: int) -> str:
+    return f"user:{user_id}"
+
+
 def get(user_id: int) -> User | None:
+    """The hottest query in the app - every page load and API call needs it."""
+    cached = get_json(_user_key(user_id))
+    if cached:
+        return User(id=cached["id"], email=cached["email"])
+
     with cursor() as cur:
         cur.execute("SELECT id, email FROM users WHERE id = %s", (user_id,))
         row = cur.fetchone()
-    return User(id=row[0], email=row[1]) if row else None
+    if not row:
+        return None
+
+    user = User(id=row[0], email=row[1])
+    set_json(_user_key(user.id), {"id": user.id, "email": user.email})
+    return user
+
+
+def forget(user_id: int) -> None:
+    """Drop a cached user, for when their record changes."""
+    cache_delete(_user_key(user_id))

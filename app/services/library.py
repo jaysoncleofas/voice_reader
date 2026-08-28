@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from app.cache import delete as cache_delete, get_json, set_json
 from app.db import cursor
 from app.services.audio import duration_seconds, to_wav
 
@@ -82,14 +83,32 @@ class VoiceLibrary:
             created_at=_iso(row[3]), directory=self.root / row[0],
         )
 
+    def _list_key(self, user_id: int) -> str:
+        return f"voices:{user_id}"
+
+    def _invalidate(self, user_id: int) -> None:
+        cache_delete(self._list_key(user_id))
+
     def list(self, user_id: int) -> list[StoredVoice]:
+        cached = get_json(self._list_key(user_id))
+        if cached is not None:
+            return [
+                StoredVoice(r["id"], r["name"], r["created_at"], r["duration"],
+                            self.root / r["id"])
+                for r in cached
+            ]
         with cursor() as cur:
             cur.execute(
                 "SELECT id, name, duration, created_at FROM voices "
                 "WHERE user_id = %s ORDER BY created_at",
                 (user_id,),
             )
-            return [self._voice(row) for row in cur.fetchall()]
+            voices = [self._voice(row) for row in cur.fetchall()]
+        set_json(self._list_key(user_id), [
+            {"id": v.id, "name": v.name, "created_at": v.created_at, "duration": v.duration}
+            for v in voices
+        ])
+        return voices
 
     def get(self, user_id: int, voice_id: str) -> StoredVoice | None:
         with cursor() as cur:
@@ -135,6 +154,7 @@ class VoiceLibrary:
                     (voice_id, user_id, name, seconds),
                 )
                 created = cur.fetchone()[0]
+            self._invalidate(user_id)
             return StoredVoice(voice_id, name, _iso(created), seconds, directory)
         except Exception:
             # Never leave a half-written voice behind.
@@ -149,6 +169,7 @@ class VoiceLibrary:
             )
             if not cur.fetchone():
                 return False
+        self._invalidate(user_id)
         shutil.rmtree(self.root / voice_id, ignore_errors=True)
         if self.cache_root:
             # Otherwise every clip ever rendered for this voice leaks.

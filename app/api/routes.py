@@ -3,13 +3,15 @@
 import mimetypes
 from pathlib import Path
 
-from fastapi import Body, File, Form, HTTPException, UploadFile
+from fastapi import Body, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from nicegui import app as nicegui_app
 
 from app.auth import current_user
+from app.config import settings
 from app.deps import engine, library
 from app.services import AudioError, LibraryError, SynthesisError
+from app.services import ratelimit
 
 # Keep uploads sane: a reference clip is seconds of speech, not a podcast.
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
@@ -29,6 +31,12 @@ def _require_user():
     return user
 
 
+def _enforce(verdict) -> None:
+    """429 when a limit is exceeded, with the window in the message."""
+    if not verdict.allowed:
+        raise HTTPException(429, verdict.message)
+
+
 def register() -> None:
     """Attach the API routes to the NiceGUI FastAPI app."""
 
@@ -42,6 +50,7 @@ def register() -> None:
         file: UploadFile = File(...),
     ) -> dict:
         user = _require_user()
+        _enforce(ratelimit.upload(str(user.id)))
         data = await file.read()
         if len(data) > MAX_UPLOAD_BYTES:
             raise HTTPException(413, "That recording is too large.")
@@ -58,7 +67,11 @@ def register() -> None:
         voice = library.get(_require_user().id, voice_id)
         if not voice:
             raise HTTPException(404, "No such voice.")
-        return FileResponse(voice.sample_path, media_type="audio/wav")
+        # Private: a reference clip is one account's audio, never shared caches.
+        return FileResponse(
+            voice.sample_path, media_type="audio/wav",
+            headers={"Cache-Control": f"private, max-age={settings.cache_ttl}"},
+        )
 
     @nicegui_app.delete("/api/voices/{voice_id}")
     def delete_voice(voice_id: str) -> dict:
@@ -68,7 +81,10 @@ def register() -> None:
 
     @nicegui_app.post("/api/speak")
     async def speak(payload: dict = Body(...)) -> FileResponse:
-        voice = library.get(_require_user().id, str(payload.get("voice_id", "")))
+        user = _require_user()
+        # Synthesis pins a core for ~10s on a shared box; throttle it hardest.
+        _enforce(ratelimit.speak(str(user.id)))
+        voice = library.get(user.id, str(payload.get("voice_id", "")))
         if not voice:
             raise HTTPException(404, "No such voice.")
         try:
@@ -79,13 +95,19 @@ def register() -> None:
             )
         except SynthesisError as exc:
             raise HTTPException(503, str(exc)) from exc
-        return FileResponse(clip, media_type="audio/wav")
+        # Content-addressed by text+voice+language, so it never goes stale.
+        return FileResponse(
+            clip, media_type="audio/wav",
+            headers={"Cache-Control": f"private, max-age={settings.asset_max_age}, immutable"},
+        )
 
     @nicegui_app.get("/api/tts/status")
     def tts_status() -> dict:
+        from app.cache import healthy
         return {
             "enabled": engine.enabled,
             "ready": engine.ready,
             "model": engine.model_name,
             "error": engine.load_error,
+            "cache": healthy(),
         }

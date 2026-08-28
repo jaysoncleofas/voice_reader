@@ -11,3 +11,6 @@ transformers>=4.57,<5
 
 # Accounts and per-user voice metadata. Audio itself stays on the filesystem.
 psycopg[binary,pool]==3.2.3
+
+# Cache for hot lookups and the shared counters behind rate limiting.
+redis==5.2.1
