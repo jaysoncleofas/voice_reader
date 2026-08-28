@@ -16,19 +16,18 @@ machine. Each account's voices are private to that account.
 
 ```bash
 cp .env.example .env      # fill in the two secrets
-./start.sh
+docker compose up -d --build
 ```
 
 Then open http://localhost:8080 and create an account.
 
 | Command | What it does |
 | --- | --- |
-| `./start.sh` | Build if needed and start in the background |
-| `./start.sh --build` | Force an image rebuild, then start |
-| `./start.sh --fg` | Run in the foreground, streaming logs |
-| `./start.sh logs` | Follow the logs |
-| `./start.sh stop` | Stop and remove the containers |
-| `./start.sh status` | Show container status |
+| `docker compose up -d --build` | Build and start in the background |
+| `docker compose up --build` | Run in the foreground, streaming logs |
+| `docker compose logs -f` | Follow the logs |
+| `docker compose down` | Stop and remove the containers |
+| `docker compose ps` | Show container status |
 
 ## Pages
 
@@ -79,41 +78,12 @@ Split by what each store is good at:
 
 Both volumes survive image rebuilds.
 
-## Performance
-
-Measured on the production server (8-core x86, CPU-only — there is no GPU):
-
-| | Time |
-| --- | --- |
-| First ever call (downloads the ~1.8 GB model) | ~60 s |
-| First call after a restart (model into memory) | ~25 s |
-| Normal sentence, model warm | ~10 s |
-| Text already spoken before | instant, served from cache |
-
-## Deployment
-
-Runs behind host nginx on the shared server, with its own Postgres, following the
-same pattern as the other apps on that box.
-
-```bash
-# on the server
-cd /opt/voice_reader
-docker compose -p voice_prod -f docker-compose.prod.yml up -d --build
-```
-
-nginx config lives in [deploy/nginx/voice-reader.conf](deploy/nginx/voice-reader.conf)
-— it proxies to `127.0.0.1:8060`, passes WebSocket upgrades (NiceGUI needs them),
-and raises `proxy_read_timeout` to 600s so a cold model load cannot 504.
-
 ## Project layout
 
 ```
 .
-├── start.sh                 # local Docker entry point
 ├── Dockerfile               # multi-stage; compiles deps with no prebuilt wheels
-├── docker-compose.yml       # local: app + postgres
-├── docker-compose.prod.yml  # server: loopback-only port, own postgres
-├── deploy/nginx/            # reverse proxy config
+├── docker-compose.yml       # app + postgres
 └── app/
     ├── main.py              # wires storage, API, pages; starts the server
     ├── config.py            # settings from environment variables
@@ -157,7 +127,7 @@ level. Light is the default; `VOICE_DARK=true` switches to the dark palette.
 | `VOICE_STORAGE_SECRET` | — | **Set this.** Signs the session cookie |
 | `POSTGRES_PASSWORD` | — | **Set this** in production |
 | `VOICE_TITLE` | `Voice Reader` | Page and window title |
-| `VOICE_PORT` | `8080` local / `8060` prod | Published port |
+| `VOICE_PORT` | `8080` | Published port |
 | `VOICE_DARK` | `false` | Dark palette instead of light |
 | `VOICE_TTS_MODEL` | `tts_models/multilingual/multi-dataset/xtts_v2` | Cloning model |
 | `VOICE_TTS_LANGUAGE` | `en` | Default synthesis language |
