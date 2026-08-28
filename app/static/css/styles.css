@@ -37,6 +37,8 @@
   --shadow: 0 1px 2px rgb(9 9 11 / 0.06), 0 1px 3px rgb(9 9 11 / 0.05);
   --shadow-lg: 0 20px 45px rgb(9 9 11 / 0.18);
   --sidebar-w: 17rem;
+  --input-border: rgb(9 9 11 / 0.15);
+  --input-border-hover: rgb(9 9 11 / 0.28);
 }
 
 body.body--dark {
@@ -59,6 +61,8 @@ body.body--dark {
   --danger: #ef4444;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-lg: 0 20px 45px rgb(0 0 0 / 0.6);
+  --input-border: rgb(255 255 255 / 0.15);
+  --input-border-hover: rgb(255 255 255 / 0.28);
 }
 
 body,
@@ -271,6 +275,12 @@ body.body--dark {
   font-size: 0.875rem;
 }
 
+/* The row currently sounding: its stop button stays visibly active. */
+.btn-ghost.playing, .btn-ghost.playing.q-btn {
+  background: var(--fill-hover) !important;
+  color: var(--text) !important;
+}
+
 /* ---- badges ---------------------------------------------------------- */
 
 .badge {
@@ -337,7 +347,14 @@ body.body--dark {
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--text);
-  line-height: 1.25rem;
+  line-height: 1.5rem;
+}
+
+/* A muted hint under a control, as Catalyst puts under its checkbox. */
+.field-hint {
+  font-size: 0.875rem;
+  color: var(--faint);
+  line-height: 1.375rem;
 }
 
 /* ---- form controls (Quasar) ------------------------------------------ */
@@ -346,24 +363,58 @@ body.body--dark {
   background: var(--panel);
   border-radius: var(--radius);
   padding: 0 0.75rem;
+  min-height: 2.375rem;
 }
 
+/* Catalyst's input: a hairline border over a small drop shadow. */
 .q-field--outlined .q-field__control:before {
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius);
-  box-shadow: 0 1px 2px rgb(9 9 11 / 0.04);
+  box-shadow: 0 1px 2px rgb(9 9 11 / 0.05);
   transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.q-field--outlined .q-field__control:hover:before { border-color: var(--faint); }
+.q-field--outlined .q-field__control:hover:before { border-color: var(--input-border-hover); }
+
+/* Quasar reserves vertical space for a floating label that we never use. */
+.q-field--outlined .q-field__native,
+.q-field--outlined .q-field__input {
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 2.375rem;
+}
+
+.q-field--outlined .q-field__marginal { height: 2.375rem; }
+
+/* Textarea: a fixed starting height the reader can drag taller, matching
+   Catalyst's resize grabber. Quasar's autogrow would suppress the handle. */
+.q-textarea .q-field__control {
+  min-height: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+.q-textarea .q-field__native {
+  resize: vertical;
+  min-height: 7rem;
+  padding: 0;
+  line-height: 1.5rem;
+}
+
+/* Catalyst marks a select with a stacked up/down chevron, not a single arrow. */
+.q-select .q-field__append .q-icon {
+  font-size: 1.125rem;
+  color: var(--faint);
+}
 
 /* Quasar's ::after draws a heavy second border on focus; Catalyst uses a thin
    blue border plus a 1px ring, so ::after is dropped and ::before does both. */
 .q-field--outlined .q-field__control:after { display: none !important; }
 
+/* Catalyst's focus: the border turns blue and a matching ring sits just
+   outside it, reading as a doubled edge. */
 .q-field--outlined.q-field--focused .q-field__control:before {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 0 4px rgb(59 130 246 / 0.18);
 }
 
 .q-field__native, .q-field__input, .q-field__native span {

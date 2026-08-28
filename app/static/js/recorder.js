@@ -86,13 +86,19 @@ window.__speakCloned = async (voiceId, text, rate) => {
   }
 };
 
-// Play an audio URL (the Voices table's preview button).
-window.__playUrl = (url) => {
+// Play an audio URL (the Voices table's preview button). The promise settles
+// when playback ends or is stopped, which is what flips the button back.
+window.__playUrl = (url) => new Promise((resolve) => {
   window.__stopAll();
   const audio = new Audio(url);
   window.__clonedAudio = audio;
-  audio.play().catch(() => {});
-};
+  let settled = false;
+  const finish = (result) => { if (!settled) { settled = true; resolve(result); } };
+  audio.onended = () => finish({ ok: true });
+  audio.onpause = () => finish({ ok: true });   // covers __stopAll()
+  audio.onerror = () => finish({ ok: false, error: 'Could not play that recording.' });
+  audio.play().catch((e) => finish({ ok: false, error: String((e && e.message) || e) }));
+});
 
 // One stop button for both engines.
 window.__stopAll = () => {

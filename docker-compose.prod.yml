@@ -1,0 +1,18 @@
+# Production overlay. Mirrors the other apps on the box: the port is published
+# only on loopback and host nginx terminates TLS in front of it.
+services:
+  voice:
+    build: .
+    image: voice_reader:prod
+    container_name: voice_reader
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${VOICE_PORT:-8060}:8080"
+    environment:
+      VOICE_TITLE: ${VOICE_TITLE:-Voice Reader}
+    volumes:
+      # Recorded voices, model weights and cached clips.
+      - voice-data:/data
+
+volumes:
+  voice-data:

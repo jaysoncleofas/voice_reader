@@ -38,12 +38,12 @@ def register() -> None:
                 with field("Your text"):
                     text = ui.textarea(
                         placeholder="Type a sentence here...",
-                    ).props("outlined autogrow rows=5").classes("w-full")
+                    ).props("outlined rows=4").classes("w-full")
 
                 with ui.row().classes("w-full items-end gap-4 flex-nowrap"):
                     with field("Voice"):
                         voice_select = ui.select([]) \
-                            .props("outlined dense options-dense").classes("w-full")
+                            .props("outlined dense options-dense dropdown-icon=unfold_more").classes("w-full")
                     with ui.column().classes("gap-1 w-44 shrink-0"):
                         with ui.row().classes("w-full items-center gap-2"):
                             ui.label("Speed").classes("text-xs font-medium").style("color:var(--muted)")

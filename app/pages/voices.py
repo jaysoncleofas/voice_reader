@@ -30,6 +30,7 @@ def register() -> None:
     @ui.page("/voices")
     def voices_page() -> None:
         recording = {"active": False}
+        playing: dict = {"id": None}
         passage = {"index": 0}
         started = {"at": 0.0}
 
@@ -63,9 +64,11 @@ def register() -> None:
                             ui.label(_created(voice.created_at)).classes("col-date")
                             ui.label(f"{voice.duration:.0f}s").classes("col-len")
                             with ui.element("div").classes("col-act"):
-                                ui.button(icon="play_arrow",
+                                is_playing = playing["id"] == voice.id
+                                ui.button(icon="stop" if is_playing else "play_arrow",
                                           on_click=lambda _, v=voice: preview(v.id)) \
-                                    .props("flat dense round").classes("btn-ghost")
+                                    .props("flat dense round") \
+                                    .classes("btn-ghost playing" if is_playing else "btn-ghost")
                                 ui.button(icon="delete",
                                           on_click=lambda _, v=voice: confirm_delete(v)) \
                                     .props("flat dense round").classes("btn-ghost")
@@ -124,8 +127,25 @@ def register() -> None:
                 ui.notify("Voice deleted.")
 
         async def preview(voice_id: str) -> None:
-            await ui.run_javascript(
-                f"window.__playUrl({json.dumps(f'/api/voices/{voice_id}/sample')});")
+            """Play a reference clip, or stop it if that row is already sounding."""
+            if playing["id"] == voice_id:
+                await ui.run_javascript("window.__stopAll();")
+                playing["id"] = None
+                voice_table.refresh()
+                return
+
+            playing["id"] = voice_id
+            voice_table.refresh()
+            url = f"/api/voices/{voice_id}/sample"
+            result = await ui.run_javascript(
+                f"return await window.__playUrl({json.dumps(url)});", timeout=600.0)
+
+            # A different row may have taken over while this clip was playing.
+            if playing["id"] == voice_id:
+                playing["id"] = None
+                voice_table.refresh()
+            if not (result or {}).get("ok"):
+                ui.notify((result or {}).get("error", "Playback failed."), type="negative")
 
         # ---- passage + recording -------------------------------------------
 

@@ -7,6 +7,13 @@ from nicegui import ui
 from app.config import settings
 from app.deps import engine, library
 
+
+def _asset(path: str) -> str:
+    """Static URL stamped with the file's mtime, to defeat browser caching."""
+    file = settings.static_dir / path
+    stamp = int(file.stat().st_mtime) if file.exists() else 0
+    return f"{settings.static_url}/{path}?v={stamp}"
+
 NAV = (
     ("/", "Home", "home"),
     ("/voices", "Voices", "graphic_eq"),
@@ -14,9 +21,9 @@ NAV = (
 
 
 def _head() -> None:
-    ui.add_head_html(f'<link rel="stylesheet" href="{settings.static_url}/css/styles.css">')
-    ui.add_body_html(f'<script src="{settings.static_url}/js/voices.js"></script>')
-    ui.add_body_html(f'<script src="{settings.static_url}/js/recorder.js"></script>')
+    ui.add_head_html(f'<link rel="stylesheet" href="{_asset("css/styles.css")}">')
+    ui.add_body_html(f'<script src="{_asset("js/voices.js")}"></script>')
+    ui.add_body_html(f'<script src="{_asset("js/recorder.js")}"></script>')
 
 
 def _sidebar(active: str) -> None:
