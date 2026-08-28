@@ -1,0 +1,15 @@
+services:
+  voice:
+    build: .
+    container_name: voice
+    ports:
+      - "${VOICE_PORT:-8080}:8080"
+    environment:
+      VOICE_TITLE: ${VOICE_TITLE:-Voice Reader}
+    volumes:
+      # Recorded voices, model weights, and cached clips persist across rebuilds.
+      - voice-data:/data
+    restart: unless-stopped
+
+volumes:
+  voice-data:

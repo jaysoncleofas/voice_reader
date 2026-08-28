@@ -1,0 +1,408 @@
+/* Catalyst-inspired theme.
+ *
+ * Catalyst is a commercial Tailwind UI package, so none of its component source
+ * is reproduced here. This rebuilds the look from plain CSS: zinc neutrals,
+ * hairline borders, a white content panel beside a tinted sidebar, generous
+ * radii and a blue focus ring.
+ *
+ * Light is the default. Dark applies when Quasar sets body.body--dark, which
+ * NiceGUI drives from VOICE_DARK.
+ *
+ * Much of the file exists to tame Quasar: NiceGUI renders Quasar widgets that
+ * ship their own Material styling, so form controls must be overridden at the
+ * component level - Tailwind classes cannot reach inside them.
+ */
+
+:root {
+  --bg: #f4f4f5;                      /* zinc-100, behind the panel */
+  --panel: #ffffff;
+  --text: #09090b;                    /* zinc-950 */
+  --muted: #52525b;                   /* zinc-600 */
+  --faint: #71717a;                   /* zinc-500 */
+  --border: rgb(9 9 11 / 0.07);
+  --border-strong: rgb(9 9 11 / 0.12);
+  --fill: rgb(9 9 11 / 0.03);
+  --fill-hover: rgb(9 9 11 / 0.05);
+  --accent: #3b82f6;                  /* blue-500 */
+  --solid-bg: #18181b;
+  --solid-fg: #ffffff;
+  --solid-hover: #27272a;
+  --badge-ok-bg: #ecfccb;             /* lime-100 */
+  --badge-ok-fg: #3f6212;             /* lime-800 */
+  --badge-mute-bg: #f4f4f5;
+  --badge-mute-fg: #52525b;
+  --danger: #dc2626;
+  --radius: 0.5rem;
+  --radius-lg: 0.875rem;
+  --shadow: 0 1px 2px rgb(9 9 11 / 0.06), 0 1px 3px rgb(9 9 11 / 0.05);
+  --shadow-lg: 0 20px 45px rgb(9 9 11 / 0.18);
+  --sidebar-w: 17rem;
+}
+
+body.body--dark {
+  --bg: #09090b;
+  --panel: #18181b;
+  --text: #ffffff;
+  --muted: #a1a1aa;
+  --faint: #71717a;
+  --border: rgb(255 255 255 / 0.10);
+  --border-strong: rgb(255 255 255 / 0.16);
+  --fill: rgb(255 255 255 / 0.05);
+  --fill-hover: rgb(255 255 255 / 0.10);
+  --solid-bg: #ffffff;
+  --solid-fg: #09090b;
+  --solid-hover: #d4d4d8;
+  --badge-ok-bg: rgb(132 204 22 / 0.15);
+  --badge-ok-fg: #bef264;
+  --badge-mute-bg: rgb(255 255 255 / 0.08);
+  --badge-mute-fg: #a1a1aa;
+  --danger: #ef4444;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 20px 45px rgb(0 0 0 / 0.6);
+}
+
+body,
+body.body--dark {
+  background: var(--bg) !important;
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.nicegui-content {
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+/* ---- shell ----------------------------------------------------------- */
+
+.shell {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  align-items: stretch;
+  gap: 0;
+  flex-wrap: nowrap;
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex: 0 0 var(--sidebar-w);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: var(--panel);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  box-shadow: inset 0 0 0 1px var(--border), var(--shadow);
+  margin: 0.5rem 0.5rem 0.5rem 0;
+  padding: 2rem 2.5rem;
+}
+
+.main-inner {
+  max-width: 64rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ---- sidebar nav ----------------------------------------------------- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem 1rem;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 100ms ease, color 100ms ease;
+}
+
+.nav-item:hover {
+  background: var(--fill-hover);
+  color: var(--text);
+}
+
+.nav-item.active {
+  background: var(--fill-hover);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.nav-section {
+  padding: 1.25rem 0.625rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--faint);
+}
+
+.sidebar-foot {
+  margin-top: auto;
+  padding: 0.75rem 0.625rem 0.25rem;
+  font-size: 0.75rem;
+  color: var(--faint);
+  border-top: 1px solid var(--border);
+}
+
+/* ---- typography ------------------------------------------------------ */
+
+.page-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.page-sub {
+  font-size: 0.875rem;
+  color: var(--faint);
+}
+
+.section-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hairline {
+  height: 1px;
+  background: var(--border);
+  width: 100%;
+}
+
+/* ---- buttons --------------------------------------------------------- */
+
+.q-btn {
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: var(--radius) !important;
+  padding: 0.4375rem 0.875rem;
+  min-height: 0;
+  box-shadow: none !important;
+}
+
+.q-btn .q-btn__content { gap: 0.375rem; }
+.q-btn:before { box-shadow: none !important; }
+
+.btn-solid, .btn-solid.q-btn {
+  background: var(--solid-bg) !important;
+  color: var(--solid-fg) !important;
+}
+.btn-solid:hover { background: var(--solid-hover) !important; }
+
+.btn-outline, .btn-outline.q-btn {
+  background: transparent !important;
+  color: var(--text) !important;
+  box-shadow: inset 0 0 0 1px var(--border-strong) !important;
+}
+.btn-outline:hover { background: var(--fill) !important; }
+
+.btn-ghost, .btn-ghost.q-btn {
+  background: transparent !important;
+  color: var(--faint) !important;
+}
+.btn-ghost:hover { background: var(--fill-hover) !important; color: var(--text) !important; }
+
+.btn-danger, .btn-danger.q-btn {
+  background: var(--danger) !important;
+  color: #ffffff !important;
+}
+.btn-danger:hover { filter: brightness(0.92); }
+
+.q-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- table ----------------------------------------------------------- */
+
+.tbl { width: 100%; }
+
+.tbl-head {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 0.75rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--faint);
+  border-bottom: 1px solid var(--border);
+}
+
+.tbl-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--text);
+  border-radius: var(--radius);
+  transition: background 100ms ease;
+}
+
+.tbl-row:hover { background: var(--fill); }
+
+.col-name  { flex: 2 1 0; min-width: 0; font-weight: 500; }
+.col-date  { flex: 1.4 1 0; color: var(--faint); }
+.col-len   { flex: 0.8 1 0; color: var(--faint); }
+.col-act   { flex: 0 0 auto; display: flex; gap: 0.25rem; justify-content: flex-end; }
+
+.empty-state {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--faint);
+  font-size: 0.875rem;
+}
+
+/* ---- badges ---------------------------------------------------------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-ok { background: var(--badge-ok-bg); color: var(--badge-ok-fg); }
+.badge-mute { background: var(--badge-mute-bg); color: var(--badge-mute-fg); }
+
+/* ---- dialog ---------------------------------------------------------- */
+
+.dlg {
+  background: var(--panel) !important;
+  border-radius: 1rem !important;
+  box-shadow: inset 0 0 0 1px var(--border), var(--shadow-lg) !important;
+  padding: 1.75rem;
+  width: 32rem;
+  max-width: 92vw;
+}
+
+.dlg-title { font-size: 1.125rem; font-weight: 600; color: var(--text); }
+.dlg-desc { font-size: 0.875rem; color: var(--faint); line-height: 1.5; }
+
+.passage-card {
+  background: var(--fill);
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px var(--border);
+  padding: 1rem;
+}
+
+.passage-text {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.passage-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* ---- fields ---------------------------------------------------------- */
+
+/* Catalyst stacks a plain label above the control rather than floating one
+   inside it, so inputs are declared without a Quasar label. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.field-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.25rem;
+}
+
+/* ---- form controls (Quasar) ------------------------------------------ */
+
+.q-field--outlined .q-field__control {
+  background: var(--panel);
+  border-radius: var(--radius);
+  padding: 0 0.75rem;
+}
+
+.q-field--outlined .q-field__control:before {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 1px 2px rgb(9 9 11 / 0.04);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.q-field--outlined .q-field__control:hover:before { border-color: var(--faint); }
+
+/* Quasar's ::after draws a heavy second border on focus; Catalyst uses a thin
+   blue border plus a 1px ring, so ::after is dropped and ::before does both. */
+.q-field--outlined .q-field__control:after { display: none !important; }
+
+.q-field--outlined.q-field--focused .q-field__control:before {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.q-field__native, .q-field__input, .q-field__native span {
+  color: var(--text) !important;
+  font-size: 0.875rem;
+}
+
+.q-field__label, .q-field__marginal { color: var(--faint) !important; font-size: 0.875rem; }
+.q-field--float .q-field__label { color: var(--muted) !important; }
+
+.q-menu {
+  background: var(--panel) !important;
+  color: var(--text);
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 0 1px var(--border), var(--shadow-lg);
+}
+
+.q-item {
+  border-radius: calc(var(--radius) - 2px);
+  margin: 2px 4px;
+  min-height: 36px;
+  font-size: 0.875rem;
+  color: var(--text);
+}
+.q-item:hover, .q-item--active { background: var(--fill-hover) !important; }
+
+.q-slider__track { background: var(--accent) !important; }
+.q-slider__thumb { color: var(--accent) !important; }
+.q-slider__inner { background: var(--border-strong) !important; }
+
+.q-notification { border-radius: var(--radius) !important; font-size: 0.875rem; }
+
+::selection { background: rgb(59 130 246 / 0.25); }
+
+/* ---- narrow screens -------------------------------------------------- */
+
+@media (max-width: 820px) {
+  .shell { flex-direction: column; }
+  .sidebar { width: 100%; flex: 0 0 auto; }
+  .main { margin: 0; border-radius: 0; padding: 1.5rem 1.25rem; }
+  .col-date, .col-len { display: none; }
+}

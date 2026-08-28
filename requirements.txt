@@ -1,0 +1,10 @@
+nicegui==2.10.0
+
+# Voice cloning. torch is CPU-only here: Docker on macOS has no GPU passthrough.
+torch==2.6.0
+torchaudio==2.6.0
+coqui-tts==0.27.5
+
+# coqui-tts asks for transformers>=4.57 with no upper bound, but it imports
+# isin_mps_friendly, which transformers 5.x removed. Hold it on the 4.x line.
+transformers>=4.57,<5
