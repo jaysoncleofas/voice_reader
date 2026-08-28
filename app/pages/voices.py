@@ -34,7 +34,9 @@ def register() -> None:
         passage = {"index": 0}
         started = {"at": 0.0}
 
-        with page_shell("/voices"):
+        with page_shell("/voices") as user:
+            if user is None:
+                return
             with ui.row().classes("w-full items-center justify-between mb-6 gap-4"):
                 ui.label("Voices").classes("page-title")
                 create_btn = ui.button("Create voice", icon="add") \
@@ -42,7 +44,7 @@ def register() -> None:
 
             @ui.refreshable
             def voice_table() -> None:
-                voices = library.list()
+                voices = library.list(user.id)
                 if not voices:
                     with ui.element("div").classes("empty-state"):
                         ui.label("No voices yet.")
@@ -122,7 +124,7 @@ def register() -> None:
         def do_delete() -> None:
             voice = pending.get("voice")
             confirm.close()
-            if voice and library.delete(voice.id):
+            if voice and library.delete(user.id, voice.id):
                 voice_table.refresh()
                 ui.notify("Voice deleted.")
 

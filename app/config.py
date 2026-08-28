@@ -44,6 +44,12 @@ class Settings:
     tts_language: str = os.getenv("VOICE_TTS_LANGUAGE", "en")
     tts_enabled: bool = _flag("VOICE_TTS_ENABLED", "true")
 
+    # Accounts and voice metadata. Audio files stay on disk.
+    database_url: str = os.getenv(
+        "VOICE_DATABASE_URL", "postgresql://voice:voice@db:5432/voice_reader")
+    # Signs the session cookie that keeps people logged in.
+    storage_secret: str = os.getenv("VOICE_STORAGE_SECRET", "change-me-in-production")
+
     @property
     def voices_dir(self) -> Path:
         return self.data_dir / "voices"

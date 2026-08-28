@@ -8,3 +8,6 @@ coqui-tts==0.27.5
 # coqui-tts asks for transformers>=4.57 with no upper bound, but it imports
 # isin_mps_friendly, which transformers 5.x removed. Hold it on the 4.x line.
 transformers>=4.57,<5
+
+# Accounts and per-user voice metadata. Audio itself stays on the filesystem.
+psycopg[binary,pool]==3.2.3

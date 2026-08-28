@@ -69,9 +69,9 @@ class CloningEngine:
                 logger.exception("Could not load the cloning model")
                 raise SynthesisError(f"Could not load the cloning model: {exc}") from exc
 
-    def _cache_path(self, text: str, speaker_wav: Path) -> Path:
+    def _cache_path(self, text: str, speaker_wav: Path, language: str) -> Path:
         key = hashlib.sha256(
-            "\x00".join([self.model_name, self.language, str(speaker_wav), text]).encode()
+            "\x00".join([self.model_name, language, str(speaker_wav), text]).encode()
         ).hexdigest()[:32]
         # Bucketed by voice id (the sample's folder) so deleting a voice can
         # reclaim everything ever rendered for it.
@@ -79,31 +79,36 @@ class CloningEngine:
         bucket.mkdir(parents=True, exist_ok=True)
         return bucket / f"{key}.wav"
 
-    def _synthesize(self, text: str, speaker_wav: Path, destination: Path) -> None:
+    def _synthesize(self, text: str, speaker_wav: Path, destination: Path, language: str) -> None:
         """Blocking inference - always call in a thread."""
         self._model.tts_to_file(
             text=text,
             speaker_wav=str(speaker_wav),
-            language=self.language,
+            language=language,
             file_path=str(destination),
         )
 
-    async def synthesize(self, text: str, speaker_wav: Path) -> Path:
+    async def synthesize(self, text: str, speaker_wav: Path, language: str | None = None) -> Path:
         """Render `text` in the voice of `speaker_wav`, returning a WAV path."""
+        from app.services.languages import is_supported
+
+        language = language or self.language
+        if not is_supported(language):
+            raise SynthesisError(f"The model cannot speak '{language}'.")
         text = (text or "").strip()
         if not text:
             raise SynthesisError("There is no text to read.")
         if not speaker_wav.is_file():
             raise SynthesisError("That voice's reference recording is missing.")
 
-        cached = self._cache_path(text, speaker_wav)
+        cached = self._cache_path(text, speaker_wav, language)
         if cached.is_file():
             return cached
 
         await self.ensure_loaded()
         partial = cached.with_suffix(".partial.wav")
         try:
-            await asyncio.to_thread(self._synthesize, text, speaker_wav, partial)
+            await asyncio.to_thread(self._synthesize, text, speaker_wav, partial, language)
             partial.replace(cached)  # publish atomically so readers never see a partial file
         except Exception as exc:  # noqa: BLE001
             partial.unlink(missing_ok=True)

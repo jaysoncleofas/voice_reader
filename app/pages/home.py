@@ -14,6 +14,7 @@ from app.config import settings
 from app.deps import library
 from app.pages.layout import field, page_shell
 from app.services import cancel_script, speak_script
+from app.services.languages import options as language_options
 
 # Distinguishes browser voice keys from cloned-voice ids in the dropdown.
 BROWSER_PREFIX = "browser:"
@@ -29,7 +30,9 @@ def register() -> None:
         stored: list = []
         browser_voices: list[str] = []
 
-        with page_shell("/"):
+        with page_shell("/") as user:
+            if user is None:
+                return
             with ui.element("div").classes("flex flex-col gap-1 mb-6"):
                 ui.label("Home").classes("page-title")
                 ui.label("Type a sentence, choose a voice, and press Listen.").classes("page-sub")
@@ -44,6 +47,13 @@ def register() -> None:
                     with field("Voice"):
                         voice_select = ui.select([]) \
                             .props("outlined dense options-dense dropdown-icon=unfold_more").classes("w-full")
+                    with ui.element("div").classes("field w-52 shrink-0") as language_field:
+                        ui.label("Language").classes("field-label")
+                        language = ui.select(
+                            language_options(), value=settings.tts_language,
+                        ).props("outlined dense options-dense dropdown-icon=unfold_more") \
+                            .classes("w-full")
+
                     with ui.column().classes("gap-1 w-44 shrink-0"):
                         with ui.row().classes("w-full items-center gap-2"):
                             ui.label("Speed").classes("text-xs font-medium").style("color:var(--muted)")
@@ -77,6 +87,12 @@ def register() -> None:
             options.update({BROWSER_PREFIX + name: name for name in browser_voices})
             return options
 
+        def sync_language_visibility() -> None:
+            """Browser voices carry their own language, so the picker is for clones."""
+            selected = voice_select.value or ""
+            language_field.set_visibility(
+                bool(selected) and not selected.startswith(BROWSER_PREFIX))
+
         def refresh_select(keep: str | None = None) -> None:
             available = build_options()
             voice_select.options = available
@@ -85,11 +101,12 @@ def register() -> None:
             elif voice_select.value not in available:
                 voice_select.value = next(iter(available), None)
             voice_select.update()
+            sync_language_visibility()
 
         async def load_voices() -> None:
             await ui.context.client.connected()
             stored.clear()
-            stored.extend(library.list())
+            stored.extend(library.list(user.id))
             refresh_select()
 
             # Chrome populates the voice list asynchronously, so poll a few times.
@@ -125,7 +142,8 @@ def register() -> None:
                 status.text = "Generating speech in your voice - this can take a while..."
                 result = await ui.run_javascript(
                     f"return await window.__speakCloned("
-                    f"{json.dumps(selected)}, {json.dumps(sentence)}, {float(rate.value)});",
+                    f"{json.dumps(selected)}, {json.dumps(sentence)}, {float(rate.value)}, "
+                    f"{json.dumps(language.value or settings.tts_language)});",
                     timeout=600.0,
                 )
                 if not (result or {}).get("ok"):
@@ -144,6 +162,7 @@ def register() -> None:
             await ui.run_javascript(cancel_script())
             status.text = "Stopped."
 
+        voice_select.on_value_change(lambda _: sync_language_visibility())
         listen_btn.on_click(speak)
         stop_btn.on_click(stop)
         ui.timer(0.1, load_voices, once=True)

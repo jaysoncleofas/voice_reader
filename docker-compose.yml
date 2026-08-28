@@ -1,4 +1,20 @@
 services:
+  db:
+    image: postgres:17-alpine
+    container_name: voice_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voice
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-voice}
+      POSTGRES_DB: voice_reader
+    volumes:
+      - voice-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voice"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   voice:
     build: .
     container_name: voice
@@ -6,10 +22,16 @@ services:
       - "${VOICE_PORT:-8080}:8080"
     environment:
       VOICE_TITLE: ${VOICE_TITLE:-Voice Reader}
+      VOICE_DATABASE_URL: postgresql://voice:${POSTGRES_PASSWORD:-voice}@db:5432/voice_reader
+      VOICE_STORAGE_SECRET: ${VOICE_STORAGE_SECRET:-dev-secret-not-for-production}
     volumes:
       # Recorded voices, model weights, and cached clips persist across rebuilds.
       - voice-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
   voice-data:
+  voice-pgdata:

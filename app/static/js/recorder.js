@@ -62,12 +62,12 @@ window.__recUpload = async (name) => {
 };
 
 // Ask the server to render text in a stored voice, then play what comes back.
-window.__speakCloned = async (voiceId, text, rate) => {
+window.__speakCloned = async (voiceId, text, rate, language) => {
   try {
     const res = await fetch('/api/speak', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voice_id: voiceId, text: text }),
+      body: JSON.stringify({ voice_id: voiceId, text: text, language: language }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));

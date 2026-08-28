@@ -1,28 +1,27 @@
-"""The voice library: recorded samples stored on disk, one folder per voice.
+"""The voice library: metadata in Postgres, audio on the filesystem.
 
-Layout under the data directory::
+Audio files are large and always read whole, so they stay on disk and are handed
+to ffmpeg and the model by path. Postgres holds only what needs querying -
+which account a voice belongs to, its name, length, and creation time.
 
-    voices/
-      <voice-id>/
-        meta.json     name, creation time, sample length
-        sample.wav    normalised reference clip used for cloning
-        source.<ext>  the untouched browser recording
+    voices/<voice-id>/
+      sample.wav    normalised reference clip used for cloning
+      source.<ext>  the untouched browser recording
 
-Audio lives on the filesystem rather than in a database: the files are large,
-always read whole, and handed straight to ffmpeg and the model by path.
+Every method takes a user_id and filters on it, so one account can never read
+or delete another's voices.
 """
 
-import json
 import re
 import shutil
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
+from app.db import cursor
 from app.services.audio import duration_seconds, to_wav
 
-META_NAME = "meta.json"
 SAMPLE_NAME = "sample.wav"
 
 
@@ -44,9 +43,6 @@ class StoredVoice:
 
     @property
     def label(self) -> str:
-        """How this voice appears in the dropdown."""
-        # Not "(my voice)": the default name is already "My voice", which would
-        # read "My voice (my voice)".
         return f"{self.name} (cloned)"
 
     def as_dict(self) -> dict:
@@ -64,8 +60,12 @@ def _slug(name: str) -> str:
     return slug or "voice"
 
 
+def _iso(value) -> str:
+    return value.isoformat(timespec="seconds") if isinstance(value, datetime) else str(value or "")
+
+
 class VoiceLibrary:
-    """Filesystem-backed collection of recorded reference voices."""
+    """Per-account collection of recorded reference voices."""
 
     def __init__(self, root: Path, sample_rate: int, min_seconds: float,
                  max_seconds: float, cache_root: Path | None = None) -> None:
@@ -76,18 +76,32 @@ class VoiceLibrary:
         self.max_seconds = max_seconds
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def list(self) -> list[StoredVoice]:
-        voices = [v for d in sorted(self.root.iterdir()) if d.is_dir() for v in (self._load(d),) if v]
-        return sorted(voices, key=lambda v: v.created_at)
+    def _voice(self, row) -> StoredVoice:
+        return StoredVoice(
+            id=row[0], name=row[1], duration=float(row[2] or 0),
+            created_at=_iso(row[3]), directory=self.root / row[0],
+        )
 
-    def get(self, voice_id: str) -> StoredVoice | None:
-        directory = self.root / voice_id
-        return self._load(directory) if directory.is_dir() else None
+    def list(self, user_id: int) -> list[StoredVoice]:
+        with cursor() as cur:
+            cur.execute(
+                "SELECT id, name, duration, created_at FROM voices "
+                "WHERE user_id = %s ORDER BY created_at",
+                (user_id,),
+            )
+            return [self._voice(row) for row in cur.fetchall()]
 
-    def by_label(self, label: str) -> StoredVoice | None:
-        return next((v for v in self.list() if v.label == label), None)
+    def get(self, user_id: int, voice_id: str) -> StoredVoice | None:
+        with cursor() as cur:
+            cur.execute(
+                "SELECT id, name, duration, created_at FROM voices "
+                "WHERE user_id = %s AND id = %s",
+                (user_id, voice_id),
+            )
+            row = cur.fetchone()
+        return self._voice(row) if row else None
 
-    def add(self, name: str, data: bytes, suffix: str = ".webm") -> StoredVoice:
+    def add(self, user_id: int, name: str, data: bytes, suffix: str = ".webm") -> StoredVoice:
         """Store a raw browser recording and its normalised reference clip."""
         name = (name or "").strip() or "My voice"
         if not data:
@@ -114,51 +128,29 @@ class VoiceLibrary:
                     f"{self.max_seconds:.0f}s for the best results."
                 )
 
-            voice = StoredVoice(
-                id=voice_id,
-                name=name,
-                created_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                duration=seconds,
-                directory=directory,
-            )
-            self._write_meta(voice)
-            return voice
+            with cursor() as cur:
+                cur.execute(
+                    "INSERT INTO voices (id, user_id, name, duration) "
+                    "VALUES (%s, %s, %s, %s) RETURNING created_at",
+                    (voice_id, user_id, name, seconds),
+                )
+                created = cur.fetchone()[0]
+            return StoredVoice(voice_id, name, _iso(created), seconds, directory)
         except Exception:
             # Never leave a half-written voice behind.
             shutil.rmtree(directory, ignore_errors=True)
             raise
 
-    def delete(self, voice_id: str) -> bool:
-        directory = self.root / voice_id
-        if not directory.is_dir():
-            return False
-        shutil.rmtree(directory, ignore_errors=True)
+    def delete(self, user_id: int, voice_id: str) -> bool:
+        with cursor() as cur:
+            cur.execute(
+                "DELETE FROM voices WHERE user_id = %s AND id = %s RETURNING id",
+                (user_id, voice_id),
+            )
+            if not cur.fetchone():
+                return False
+        shutil.rmtree(self.root / voice_id, ignore_errors=True)
         if self.cache_root:
             # Otherwise every clip ever rendered for this voice leaks.
             shutil.rmtree(self.cache_root / voice_id, ignore_errors=True)
         return True
-
-    def _write_meta(self, voice: StoredVoice) -> None:
-        (voice.directory / META_NAME).write_text(
-            json.dumps(
-                {"id": voice.id, "name": voice.name,
-                 "created_at": voice.created_at, "duration": voice.duration},
-                indent=2,
-            )
-        )
-
-    def _load(self, directory: Path) -> StoredVoice | None:
-        meta_file = directory / META_NAME
-        if not meta_file.is_file() or not (directory / SAMPLE_NAME).is_file():
-            return None
-        try:
-            meta = json.loads(meta_file.read_text())
-        except json.JSONDecodeError:
-            return None
-        return StoredVoice(
-            id=meta.get("id", directory.name),
-            name=meta.get("name", directory.name),
-            created_at=meta.get("created_at", ""),
-            duration=float(meta.get("duration", 0.0)),
-            directory=directory,
-        )

@@ -1,6 +1,22 @@
-# Production overlay. Mirrors the other apps on the box: the port is published
-# only on loopback and host nginx terminates TLS in front of it.
+# Production overlay. Mirrors the other apps on the box: each app owns its own
+# Postgres, and the web port is published only on loopback with host nginx in
+# front terminating TLS.
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voice
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: voice_reader
+    volumes:
+      - voice-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voice"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   voice:
     build: .
     image: voice_reader:prod
@@ -10,9 +26,15 @@ services:
       - "127.0.0.1:${VOICE_PORT:-8060}:8080"
     environment:
       VOICE_TITLE: ${VOICE_TITLE:-Voice Reader}
+      VOICE_DATABASE_URL: postgresql://voice:${POSTGRES_PASSWORD}@db:5432/voice_reader
+      VOICE_STORAGE_SECRET: ${VOICE_STORAGE_SECRET:?set VOICE_STORAGE_SECRET in .env}
     volumes:
       # Recorded voices, model weights and cached clips.
       - voice-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   voice-data:
+  voice-pgdata:
