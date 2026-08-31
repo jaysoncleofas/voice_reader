@@ -1,6 +1,6 @@
 # Voice Reader
 
-**Live at [voice-reader.jaysoncleofas.com](https://voice-reader.jaysoncleofas.com)**
+**Live at [voice.jaysoncleofas.com](https://voice.jaysoncleofas.com)**
 
 A NiceGUI app: type a sentence, press **Listen**, and hear it read aloud — either
 by one of your browser's built-in voices, or **in your own recorded voice**.
